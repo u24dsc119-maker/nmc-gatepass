@@ -20,7 +20,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_key_nmc_gatepass')
 # MongoDB Atlas - reads from Vercel environment variable
 MONGO_URI = os.environ.get(
     'MONGO_URI',
-    "mongodb+srv://u24dsc119_db_user:aC3Ls9HDZDqnHLzl@cluster0.6vdunga.mongodb.net/?retryWrites=true&w=majority&tls=true"
+    "mongodb+srv://nmcuser:nmc123@cluster0.6vdunga.mongodb.net/nmc_gatepass?retryWrites=true&w=majority&authSource=admin"
 )
 DB_NAME = "nmc_gatepass"
 
@@ -89,6 +89,18 @@ def visitor_form():
             flash('Please fill in all required fields.', 'danger')
             return render_template('form.html', **ctx)
 
+        if not (3 <= len(name) <= 50):
+            flash('Name must be between 3 and 50 characters.', 'danger')
+            return render_template('form.html', **ctx)
+
+        if not (3 <= len(person_to_meet) <= 50):
+            flash('Person name must be between 3 and 50 characters.', 'danger')
+            return render_template('form.html', **ctx)
+
+        if not (5 <= len(purpose) <= 200):
+            flash('Purpose must be between 5 and 200 characters.', 'danger')
+            return render_template('form.html', **ctx)
+
         if len(phone) != 10 or not phone.isdigit() or phone[0] not in '6789':
             flash('Please enter a valid 10-digit phone number starting with 6, 7, 8, or 9.', 'danger')
             return render_template('form.html', **ctx)
@@ -105,11 +117,11 @@ def visitor_form():
                 return render_template('form.html', **ctx)
 
             result = db.visitors.insert_one({
-                'name': name,
+                'name': name.title(),
                 'phone': phone,
-                'from_address': from_address,
-                'purpose': purpose,
-                'person_to_meet': person_to_meet,
+                'from_address': from_address.title(),
+                'purpose': purpose.capitalize(),
+                'person_to_meet': person_to_meet.title(),
                 'status': 'Pending',
                 'token': None,
                 'entry_time': None,
@@ -135,7 +147,8 @@ def visitor_status(visitor_id):
         visitor = db.visitors.find_one({'_id': ObjectId(visitor_id)})
         if visitor:
             visitor['id'] = str(visitor['_id'])
-            return render_template('status.html', visitor=visitor)
+            # Render the same form template but with visitor data to show status
+            return render_template('form.html', visitor=visitor)
         return "Visitor not found", 404
     except Exception as e:
         print(f"Status error: {e}")
@@ -293,7 +306,7 @@ def generate_pdf_bytes(visitor, token, qr_b64, expiry_time):
     c.setFont("Helvetica-Bold", 24)
     c.drawCentredString(width / 2.0, height - 1*inch, "NMC College")
     c.setFont("Helvetica-Bold", 18)
-    c.drawCentredString(width / 2.0, height - 1.5*inch, "Visitor Gate Pass")
+    c.drawCentredString(width / 2.0, height - 1.5*inch, "NMC Visitor Gate Pass")
     c.line(1*inch, height - 1.7*inch, width - 1*inch, height - 1.7*inch)
 
     c.setFont("Helvetica", 13)
@@ -301,11 +314,11 @@ def generate_pdf_bytes(visitor, token, qr_b64, expiry_time):
     lh = 0.28*inch
 
     fields = [
-        ("Name", visitor['name']),
-        ("From", visitor['from_address']),
+        ("Name", visitor['name'].title()),
+        ("From", visitor['from_address'].title()),
         ("Phone", visitor['phone']),
-        ("Purpose", visitor['purpose']),
-        ("To Meet", visitor['person_to_meet']),
+        ("Purpose", visitor['purpose'].capitalize()),
+        ("To Meet", visitor['person_to_meet'].title()),
         ("Issued", visitor['created_at'].strftime('%d-%m-%Y %I:%M %p')),
     ]
     for label, value in fields:

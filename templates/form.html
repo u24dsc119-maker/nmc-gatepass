@@ -75,6 +75,7 @@
                         {% endif %}
                         {% endwith %}
 
+                        {% if not visitor %}
                         <form method="POST" action="/form" class="needs-validation" novalidate>
 
                             <!-- Full Name -->
@@ -82,8 +83,9 @@
                                 <label for="name" class="form-label">Full Name <span
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control form-control-lg" id="name" name="name"
-                                    value="{{ name|default('') }}" required placeholder="Enter your full name">
-                                <div class="invalid-feedback">Please provide your full name.</div>
+                                    value="{{ name|default('') }}" required minlength="3" maxlength="50"
+                                    placeholder="Enter your full name">
+                                <div class="invalid-feedback">Name must be 3-50 characters.</div>
                             </div>
 
                             <!-- Phone Number (digits only, 10 digits) -->
@@ -110,15 +112,16 @@
                                     <legend>Address Details</legend>
                                     <div class="mb-2">
                                         <input type="text" class="form-control" id="street" name="street"
-                                            value="{{ street|default('') }}" required
+                                            value="{{ street|default('') }}" required minlength="5" maxlength="100"
                                             placeholder="Street / Area / Colony">
-                                        <div class="invalid-feedback">Please enter your street/area.</div>
+                                        <div class="invalid-feedback">Street must be 5-100 characters.</div>
                                     </div>
                                     <div class="row g-2">
                                         <div class="col-7">
                                             <input type="text" class="form-control" id="city" name="city"
-                                                value="{{ city|default('') }}" required placeholder="City / Village">
-                                            <div class="invalid-feedback">Please enter city/village.</div>
+                                                value="{{ city|default('') }}" required minlength="2" maxlength="50"
+                                                placeholder="City / Village">
+                                            <div class="invalid-feedback">City must be 2-50 characters.</div>
                                         </div>
                                         <div class="col-5">
                                             <input type="text" class="form-control" id="pincode" name="pincode"
@@ -136,8 +139,8 @@
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control form-control-lg" id="person_to_meet"
                                     name="person_to_meet" value="{{ person_to_meet|default('') }}" required
-                                    placeholder="Name of staff or faculty">
-                                <div class="invalid-feedback">Please specify who you are meeting.</div>
+                                    minlength="3" maxlength="50" placeholder="Name of staff or faculty">
+                                <div class="invalid-feedback">Name must be 3-50 characters.</div>
                             </div>
 
                             <!-- Purpose -->
@@ -145,8 +148,9 @@
                                 <label for="purpose" class="form-label">Purpose of Visit <span
                                         class="text-danger">*</span></label>
                                 <textarea class="form-control" id="purpose" name="purpose" rows="3" required
+                                    minlength="5" maxlength="200"
                                     placeholder="Briefly state your purpose...">{{ purpose|default('') }}</textarea>
-                                <div class="invalid-feedback">Please state your purpose.</div>
+                                <div class="invalid-feedback">Purpose must be 5-200 characters.</div>
                             </div>
 
                             <div class="d-grid">
@@ -155,6 +159,71 @@
                                 </button>
                             </div>
                         </form>
+                        {% else %}
+                        <!-- Status View -->
+                        <div class="text-center py-3">
+                            {% if visitor.status == 'Pending' %}
+                            <div class="mb-4">
+                                <i class="bi bi-clock-history text-warning display-1 mb-3 d-block"></i>
+                                <h2 class="fw-bold">Request Pending</h2>
+                                <p class="text-muted fs-5">Your request for <strong>{{ visitor.name }}</strong> has been
+                                    submitted. Please wait for admin approval.</p>
+                            </div>
+                            <div class="alert alert-info py-3 shadow-sm rounded-3">
+                                <i class="bi bi-info-circle-fill me-2"></i><strong>Don't close this page!</strong> Once
+                                approved, your PDF gatepass will appear here.
+                            </div>
+                            <button class="btn btn-outline-primary rounded-pill px-4 mt-3"
+                                onclick="window.location.reload()">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Check Again
+                            </button>
+
+                            {% elif visitor.status == 'Approved' %}
+                            <div class="mb-4">
+                                <i class="bi bi-check-circle-fill text-success display-1 mb-3 d-block"></i>
+                                <h2 class="fw-bold">Request Approved!</h2>
+                                <p class="text-muted fs-5">Your gatepass is ready for download.</p>
+                            </div>
+                            <div class="d-grid mt-4">
+                                <a href="{{ url_for('download_gatepass', token=visitor.token) }}"
+                                    class="btn btn-success btn-lg rounded-pill fw-bold shadow py-3">
+                                    <i class="bi bi-file-earmark-pdf-fill me-2"></i>Download PDF Gatepass
+                                </a>
+                            </div>
+                            <p class="mt-4 text-danger fw-bold small">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Expires today at 3:30 PM.
+                            </p>
+
+                            {% elif visitor.status == 'Rejected' %}
+                            <div class="mb-4">
+                                <i class="bi bi-x-circle-fill text-danger display-1 mb-3 d-block"></i>
+                                <h2 class="fw-bold">Request Rejected</h2>
+                                <p class="text-muted fs-5">Sorry, your visit request has been rejected.</p>
+                            </div>
+                            {% endif %}
+
+                            <div class="mt-5 pt-3 border-top text-start">
+                                <div class="row small text-secondary g-2">
+                                    <div class="col-4 fw-bold text-uppercase opacity-75">Visitor:</div>
+                                    <div class="col-8 text-dark fw-semibold">{{ visitor.name }}</div>
+                                    <div class="col-4 fw-bold text-uppercase opacity-75">Meeting:</div>
+                                    <div class="col-8 text-dark fw-semibold">{{ visitor.person_to_meet }}</div>
+                                    <div class="col-4 fw-bold text-uppercase opacity-75">Status:</div>
+                                    <div class="col-8 fw-bold">
+                                        <span
+                                            class="badge rounded-pill px-3 {% if visitor.status == 'Approved' %}bg-success{% elif visitor.status == 'Rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                            {{ visitor.status }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="d-grid mt-4">
+                                    <a href="{{ url_for('visitor_form') }}" class="btn btn-light rounded-pill border">
+                                        <i class="bi bi-plus-circle me-2"></i>New Request
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -210,6 +279,14 @@
             });
         })();
     </script>
+    <!-- Auto-refresh only if pending -->
+    {% if visitor and visitor.status == 'Pending' %}
+    <script>
+        setTimeout(function () {
+            window.location.reload();
+        }, 10000); // Refresh every 10 seconds
+    </script>
+    {% endif %}
 </body>
 
 </html>

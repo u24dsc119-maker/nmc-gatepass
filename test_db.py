@@ -3,7 +3,7 @@ import certifi
 import sys
 
 # MongoDB Atlas Configuration
-MONGO_URI = "mongodb+srv://u24dsc119_db_user:aC3Ls9HDZDqnHLzl@cluster0.6vdunga.mongodb.net/?retryWrites=true&w=majority"
+MONGO_URI = "mongodb+srv://nmcuser:nmc123@cluster0.6vdunga.mongodb.net/nmc_gatepass?retryWrites=true&w=majority&authSource=admin"
 DB_NAME = "nmc_gatepass"
 
 print(f"--- Testing MongoDB Atlas Connection with SSL Fix ---")
