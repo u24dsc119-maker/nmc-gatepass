@@ -4,36 +4,47 @@ import uuid
 import base64
 import qrcode
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-import certifi
 
 # For PDF Generation
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_key_nmc_gatepass')
 
-# MongoDB Atlas - Use environment variable for security (set in Vercel dashboard)
+# MongoDB Atlas - reads from Vercel environment variable
 MONGO_URI = os.environ.get(
     'MONGO_URI',
-    "mongodb+srv://u24dsc119_db_user:aC3Ls9HDZDqnHLzl@cluster0.6vdunga.mongodb.net/?retryWrites=true&w=majority"
+    "mongodb+srv://u24dsc119_db_user:aC3Ls9HDZDqnHLzl@cluster0.6vdunga.mongodb.net/?retryWrites=true&w=majority&tls=true"
 )
 DB_NAME = "nmc_gatepass"
 
+# Singleton MongoDB client (avoids reconnecting on every request in serverless)
+_mongo_client = None
+
 def get_db():
+    global _mongo_client
     try:
-        client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-        return client[DB_NAME]
+        if _mongo_client is None:
+            _mongo_client = MongoClient(
+                MONGO_URI,
+                serverSelectionTimeoutMS=8000,
+                connectTimeoutMS=8000,
+                tls=True
+            )
+        return _mongo_client[DB_NAME]
     except Exception as e:
         print(f"MongoDB Connection Error: {e}")
+        _mongo_client = None
         return None
 
 def make_qr_b64(url):
-    """Generate QR code as base64 string (no filesystem needed)."""
+    """Generate QR code as base64 string - no filesystem needed."""
     qr = qrcode.QRCode(version=1, box_size=12, border=4)
     qr.add_data(url)
     qr.make(fit=True)
@@ -47,7 +58,7 @@ def make_qr_b64(url):
 
 @app.route('/')
 def index():
-    """Home page: QR code gate display. Place this on the gate screen."""
+    """Home page: QR code gate display screen."""
     form_url = request.host_url.rstrip('/') + url_for('visitor_form')
     qr_b64 = make_qr_b64(form_url)
     return render_template('gate.html', qr_code=qr_b64, form_url=form_url)
@@ -66,31 +77,33 @@ def visitor_form():
         street = request.form.get('street', '').strip()
         city = request.form.get('city', '').strip()
         pincode = request.form.get('pincode', '').strip()
-        from_address = f"{street}, {city} - {pincode}" if street and city and pincode else ''
+        from_address = f"{street}, {city} - {pincode}" if (street and city and pincode) else ''
         purpose = request.form.get('purpose', '').strip()
         person_to_meet = request.form.get('person_to_meet', '').strip()
 
+        ctx = dict(name=name, phone=phone, street=street, city=city,
+                   pincode=pincode, purpose=purpose, person_to_meet=person_to_meet)
+
         # --- Validation ---
-        if not name or not phone or not street or not city or not pincode or not purpose or not person_to_meet:
+        if not all([name, phone, street, city, pincode, purpose, person_to_meet]):
             flash('Please fill in all required fields.', 'danger')
-            return render_template('form.html', name=name, phone=phone,
-                                   street=street, city=city, pincode=pincode,
-                                   purpose=purpose, person_to_meet=person_to_meet)
+            return render_template('form.html', **ctx)
 
         if len(phone) != 10 or not phone.isdigit() or phone[0] not in '6789':
             flash('Please enter a valid 10-digit phone number starting with 6, 7, 8, or 9.', 'danger')
-            return render_template('form.html', name=name, phone=phone,
-                                   street=street, city=city, pincode=pincode,
-                                   purpose=purpose, person_to_meet=person_to_meet)
+            return render_template('form.html', **ctx)
 
         if len(pincode) != 6 or not pincode.isdigit():
             flash('Please enter a valid 6-digit pincode.', 'danger')
-            return render_template('form.html', name=name, phone=phone,
-                                   street=street, city=city, pincode=pincode,
-                                   purpose=purpose, person_to_meet=person_to_meet)
+            return render_template('form.html', **ctx)
 
-        db = get_db()
-        if db is not None:
+        # --- Database ---
+        try:
+            db = get_db()
+            if db is None:
+                flash('Database connection error. Please try again.', 'danger')
+                return render_template('form.html', **ctx)
+
             result = db.visitors.insert_one({
                 'name': name,
                 'phone': phone,
@@ -104,32 +117,39 @@ def visitor_form():
                 'created_at': datetime.now()
             })
             return redirect(url_for('visitor_status', visitor_id=str(result.inserted_id)))
-        else:
-            flash('Database connection error. Please try again.', 'danger')
+        except Exception as e:
+            print(f"DB insert error: {e}")
+            flash('An error occurred. Please try again.', 'danger')
+            return render_template('form.html', **ctx)
 
     return render_template('form.html')
 
-# --- VISITOR STATUS PAGE (check approval + download PDF) ---
+# --- VISITOR STATUS PAGE ---
 
 @app.route('/status/<visitor_id>')
 def visitor_status(visitor_id):
-    db = get_db()
-    if db is not None:
-        try:
-            visitor = db.visitors.find_one({'_id': ObjectId(visitor_id)})
-            if visitor:
-                visitor['id'] = str(visitor['_id'])
-                return render_template('status.html', visitor=visitor)
-        except Exception:
-            return "Invalid Visitor ID", 400
-    return "Database connection error", 500
+    try:
+        db = get_db()
+        if db is None:
+            return render_template('error.html', message="Database connection error."), 500
+        visitor = db.visitors.find_one({'_id': ObjectId(visitor_id)})
+        if visitor:
+            visitor['id'] = str(visitor['_id'])
+            return render_template('status.html', visitor=visitor)
+        return "Visitor not found", 404
+    except Exception as e:
+        print(f"Status error: {e}")
+        return "Invalid request", 400
 
 # --- VERIFY (Gate Security QR Scan) ---
 
 @app.route('/verify/<token>')
 def verify(token):
-    db = get_db()
-    if db is not None:
+    try:
+        db = get_db()
+        if db is None:
+            return render_template('verify.html', state='invalid')
+
         visitor = db.visitors.find_one({'token': token, 'status': 'Approved'})
         if not visitor:
             return render_template('verify.html', state='invalid')
@@ -154,8 +174,9 @@ def verify(token):
             state = 'already_used'
 
         return render_template('verify.html', state=state, visitor=visitor, expiry_time=expiry_time)
-
-    return "Database connection error", 500
+    except Exception as e:
+        print(f"Verify error: {e}")
+        return render_template('verify.html', state='invalid')
 
 # --- ADMIN ROUTES ---
 
@@ -165,8 +186,7 @@ def login():
         if request.form.get('username') == 'admin' and request.form.get('password') == 'admin123':
             session['admin_logged_in'] = True
             return redirect(url_for('admin_dashboard'))
-        else:
-            flash('Invalid credentials', 'danger')
+        flash('Invalid credentials', 'danger')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -178,22 +198,25 @@ def logout():
 def admin_dashboard():
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
+    try:
+        db = get_db()
+        visitors = []
+        metrics = {'total': 0, 'approved': 0, 'rejected': 0}
 
-    db = get_db()
-    visitors = []
-    metrics = {'total': 0, 'approved': 0, 'rejected': 0}
+        if db is not None:
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = today_start + timedelta(days=1)
+            q = {'created_at': {'$gte': today_start, '$lt': today_end}}
+            metrics['total'] = db.visitors.count_documents(q)
+            metrics['approved'] = db.visitors.count_documents({**q, 'status': 'Approved'})
+            metrics['rejected'] = db.visitors.count_documents({**q, 'status': 'Rejected'})
 
-    if db is not None:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
-        q = {'created_at': {'$gte': today_start, '$lt': today_end}}
-        metrics['total'] = db.visitors.count_documents(q)
-        metrics['approved'] = db.visitors.count_documents({**q, 'status': 'Approved'})
-        metrics['rejected'] = db.visitors.count_documents({**q, 'status': 'Rejected'})
-
-        visitors = list(db.visitors.find().sort('created_at', -1))
-        for v in visitors:
-            v['id'] = str(v['_id'])
+            visitors = list(db.visitors.find().sort('created_at', -1))
+            for v in visitors:
+                v['id'] = str(v['_id'])
+    except Exception as e:
+        print(f"Admin error: {e}")
+        flash('Error loading dashboard.', 'danger')
 
     return render_template('admin.html', visitors=visitors, metrics=metrics)
 
@@ -201,105 +224,105 @@ def admin_dashboard():
 def approve_visitor(visitor_id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
+    try:
+        db = get_db()
+        if db is not None:
+            visitor = db.visitors.find_one({'_id': ObjectId(visitor_id)})
+            if visitor and visitor['status'] == 'Pending':
+                token = str(uuid.uuid4())
+                verify_url = request.host_url.rstrip('/') + url_for('verify', token=token)
+                qr_b64 = make_qr_b64(verify_url)
+                expiry_time = visitor['created_at'].replace(hour=15, minute=30, second=0, microsecond=0)
+                pdf_bytes = generate_pdf_bytes(visitor, token, qr_b64, expiry_time)
 
-    db = get_db()
-    if db is not None:
-        visitor = db.visitors.find_one({'_id': ObjectId(visitor_id)})
-        if visitor and visitor['status'] == 'Pending':
-            token = str(uuid.uuid4())
-            verify_url = request.host_url.rstrip('/') + url_for('verify', token=token)
-
-            # Generate QR code as base64 and store in MongoDB (no filesystem!)
-            qr_b64 = make_qr_b64(verify_url)
-
-            # Generate PDF as bytes in memory and store in MongoDB
-            expiry_time = visitor['created_at'].replace(hour=15, minute=30, second=0, microsecond=0)
-            pdf_bytes = generate_pdf_bytes(visitor, token, qr_b64, expiry_time)
-
-            db.visitors.update_one(
-                {'_id': ObjectId(visitor_id)},
-                {'$set': {
-                    'status': 'Approved',
-                    'token': token,
-                    'pdf_data': pdf_bytes,   # store PDF in MongoDB
-                    'qr_b64': qr_b64
-                }}
-            )
-            flash(f"Visitor {visitor['name']} approved successfully!", "success")
-
+                db.visitors.update_one(
+                    {'_id': ObjectId(visitor_id)},
+                    {'$set': {
+                        'status': 'Approved',
+                        'token': token,
+                        'pdf_data': pdf_bytes,
+                        'qr_b64': qr_b64
+                    }}
+                )
+                flash(f"Visitor {visitor['name']} approved successfully!", "success")
+    except Exception as e:
+        print(f"Approve error: {e}")
+        flash("Error approving visitor.", "danger")
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/reject/<visitor_id>')
 def reject_visitor(visitor_id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
-    db = get_db()
-    if db is not None:
-        db.visitors.update_one({'_id': ObjectId(visitor_id)}, {'$set': {'status': 'Rejected'}})
-        flash("Visitor rejected.", "warning")
+    try:
+        db = get_db()
+        if db is not None:
+            db.visitors.update_one({'_id': ObjectId(visitor_id)}, {'$set': {'status': 'Rejected'}})
+            flash("Visitor rejected.", "warning")
+    except Exception as e:
+        print(f"Reject error: {e}")
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/download/<token>')
 def download_gatepass(token):
-    """Visitor downloads their PDF gate pass after approval."""
-    db = get_db()
-    if db is not None:
-        visitor = db.visitors.find_one({'token': token, 'status': 'Approved'})
-        if visitor and visitor.get('pdf_data'):
-            pdf_bytes = visitor['pdf_data']
-            buf = io.BytesIO(pdf_bytes)
-            buf.seek(0)
-            return send_file(
-                buf,
-                mimetype='application/pdf',
-                as_attachment=True,
-                download_name=f"NMC_Gatepass_{visitor['name'].replace(' ','_')}.pdf"
-            )
+    try:
+        db = get_db()
+        if db is not None:
+            visitor = db.visitors.find_one({'token': token, 'status': 'Approved'})
+            if visitor and visitor.get('pdf_data'):
+                buf = io.BytesIO(visitor['pdf_data'])
+                buf.seek(0)
+                return send_file(
+                    buf,
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f"NMC_Gatepass_{visitor['name'].replace(' ','_')}.pdf"
+                )
+    except Exception as e:
+        print(f"Download error: {e}")
     flash("PDF not found or not approved yet.", "danger")
     return redirect(url_for('visitor_form'))
 
-# --- PDF GENERATION (in-memory, no filesystem) ---
+# --- PDF GENERATION (in-memory) ---
 
 def generate_pdf_bytes(visitor, token, qr_b64, expiry_time):
-    """Generate PDF in memory and return as bytes."""
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=letter)
     width, height = letter
 
-    # Title
     c.setFont("Helvetica-Bold", 24)
     c.drawCentredString(width / 2.0, height - 1*inch, "NMC College")
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2.0, height - 1.5*inch, "Visitor Gate Pass")
-
     c.line(1*inch, height - 1.7*inch, width - 1*inch, height - 1.7*inch)
 
-    c.setFont("Helvetica", 14)
-    y = height - 2.5*inch
-    lh = 0.3*inch
+    c.setFont("Helvetica", 13)
+    y = height - 2.4*inch
+    lh = 0.28*inch
 
-    c.drawString(1*inch, y, f"Name      : {visitor['name']}"); y -= lh
-    c.drawString(1*inch, y, f"From      : {visitor['from_address']}"); y -= lh
-    c.drawString(1*inch, y, f"Phone     : {visitor['phone']}"); y -= lh
-    c.drawString(1*inch, y, f"Purpose   : {visitor['purpose']}"); y -= lh
-    c.drawString(1*inch, y, f"To Meet   : {visitor['person_to_meet']}"); y -= lh
-    c.drawString(1*inch, y, f"Issued    : {visitor['created_at'].strftime('%d-%m-%Y %I:%M %p')}"); y -= lh
+    fields = [
+        ("Name", visitor['name']),
+        ("From", visitor['from_address']),
+        ("Phone", visitor['phone']),
+        ("Purpose", visitor['purpose']),
+        ("To Meet", visitor['person_to_meet']),
+        ("Issued", visitor['created_at'].strftime('%d-%m-%Y %I:%M %p')),
+    ]
+    for label, value in fields:
+        c.drawString(1*inch, y, f"{label:<10}: {value}")
+        y -= lh
 
     c.setFont("Helvetica-Bold", 13)
     c.setFillColorRGB(0.8, 0, 0)
-    c.drawString(1*inch, y, f"Valid Until: {expiry_time.strftime('%d-%m-%Y')} at 3:30 PM")
+    c.drawString(1*inch, y, f"Valid Until  : {expiry_time.strftime('%d-%m-%Y')} at 3:30 PM")
 
-    # Embed QR code from base64
-    qr_bytes = base64.b64decode(qr_b64)
-    qr_buf = io.BytesIO(qr_bytes)
-    from reportlab.lib.utils import ImageReader
-    qr_img = ImageReader(qr_buf)
-    c.drawImage(qr_img, width - 3*inch, height - 4*inch, width=2*inch, height=2*inch)
+    # Embed QR from base64
+    qr_img = ImageReader(io.BytesIO(base64.b64decode(qr_b64)))
+    c.drawImage(qr_img, width - 3*inch, height - 4.2*inch, width=2.2*inch, height=2.2*inch)
 
-    c.setFont("Helvetica-Oblique", 10)
+    c.setFont("Helvetica-Oblique", 9)
     c.setFillColorRGB(0, 0, 0)
-    c.drawString(1*inch, 1*inch, "Valid for one-time entry & exit. Must be shown at security gate before 3:30 PM.")
-
+    c.drawString(1*inch, 0.8*inch, "Valid for one-time entry & exit. Must be shown at the security gate before 3:30 PM.")
     c.save()
     buf.seek(0)
     return buf.read()
