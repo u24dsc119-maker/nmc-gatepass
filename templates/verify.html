@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Gatepass - NMC College</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6 mt-5">
+
+                {% if state == 'entry_allowed' %}
+                <div class="card border-0 border-success shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-success text-white text-center py-5 border-0">
+                        <i class="bi bi-check-circle-fill mb-3 d-block" style="font-size: 4rem;"></i>
+                        <h2 class="text-white fw-bold">Valid Gatepass</h2>
+                        <h3 class="mb-0 text-white opacity-75">ENTRY ALLOWED</h3>
+                    </div>
+                    <div class="card-body p-4 p-md-5 text-center bg-white">
+                        <p class="text-success fw-bold fs-5 mb-4">
+                            <i class="bi bi-clock-fill me-2"></i>Entry Timestamp Recorded: <br>
+                            {{ visitor.entry_time.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </p>
+                        <hr class="w-25 mx-auto bg-success">
+                        <table class="table table-borderless mt-4 text-start mx-auto align-middle fs-5">
+                            <tr>
+                                <th class="text-muted fw-normal" width="35%">Visitor:</th>
+                                <td class="fw-bold">{{ visitor.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted fw-normal">Meeting:</th>
+                                <td class="fw-bold text-primary">{{ visitor.person_to_meet }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted fw-normal">Phone:</th>
+                                <td>{{ visitor.phone }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted fw-normal">Expiry:</th>
+                                <td class="text-danger fw-bold">{{ expiry_time.strftime('%I:%M %p') }} Today</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                {% elif state == 'exit_recorded' %}
+                <div class="card border-0 border-primary shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-primary text-white text-center py-4 rounded-top-4 border-bottom-0">
+                        <h3 class="mb-0 fw-bold">NMC College</h3>
+                        <p class="mb-0 opacity-75 text-uppercase small ls-wide">Verification Portal</p>
+                        <i class="bi bi-box-arrow-right mb-3 d-block" style="font-size: 4rem;"></i>
+                        <h2 class="text-white fw-bold">Gatepass Complete</h2>
+                        <h3 class="mb-0 text-white opacity-75">EXIT RECORDED</h3>
+                    </div>
+                    <div class="card-body p-4 p-md-5 text-center bg-white">
+                        <p class="fs-5 mb-2">Thank you for visiting NMC College!</p>
+                        <p class="text-primary fw-bold fs-5 mt-3">
+                            <i class="bi bi-clock-fill me-2"></i>Exit Timestamp Recorded: <br>
+                            {{ visitor.exit_time.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </p>
+                    </div>
+                </div>
+
+                {% elif state == 'already_used' %}
+                <div class="card border-0 border-warning shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-warning text-dark text-center py-5 border-0">
+                        <i class="bi bi-exclamation-triangle-fill mb-3 d-block" style="font-size: 4rem;"></i>
+                        <h2 class="fw-bold">Gatepass Finished</h2>
+                        <h3 class="mb-0 opacity-75">Already Used & Closed</h3>
+                    </div>
+                    <div class="card-body p-4 p-md-5 text-center bg-white">
+                        <p class="fs-5 mt-3 mb-0">This Gatepass has already completed its Entry and Exit cycles. It
+                            cannot be reused.</p>
+                        <p class="text-muted mt-3">
+                            Entry was at: {{ visitor.entry_time }} <br>
+                            Exit was at: {{ visitor.exit_time }}
+                        </p>
+                    </div>
+                </div>
+
+                {% elif state == 'expired' %}
+                <div class="card border-0 border-danger shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-danger text-white text-center py-5 border-0">
+                        <i class="bi bi-clock-history mb-3 d-block" style="font-size: 4rem;"></i>
+                        <h2 class="text-white fw-bold">Gatepass Expired</h2>
+                        <h3 class="mb-0 text-white opacity-75">TIMELIMIT EXCEEDED</h3>
+                    </div>
+                    <div class="card-body p-4 p-md-5 text-center bg-white">
+                        <p class="fs-5 mt-3 mb-0">This gatepass expired today at 3:30 PM. Access is now restricted.</p>
+                        <p class="text-muted mt-3">Issued: {{ visitor.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+
+                {% else %}
+                <!-- Invalid State -->
+                <div class="card border-0 border-danger shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-danger text-white text-center py-5 border-0">
+                        <i class="bi bi-x-octagon-fill mb-3 d-block" style="font-size: 4rem;"></i>
+                        <h2 class="text-white fw-bold">Invalid Gatepass</h2>
+                        <h3 class="mb-0 text-white opacity-75">ENTRY DENIED</h3>
+                    </div>
+                    <div class="card-body p-4 p-md-5 text-center bg-white">
+                        <p class="fs-5 mt-3 mb-0">The scanned QR code is either not found, pending admin approval, or
+                            rejected.</p>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

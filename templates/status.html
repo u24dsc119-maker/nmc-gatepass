@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visit Status - NMC College</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light min-vh-100 d-flex flex-column">
+    <div class="container my-auto py-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="card shadow border-0 rounded-4">
+                    <div class="card-header bg-primary text-white text-center py-4 rounded-top-4 border-bottom-0">
+                        <h3 class="mb-0 fw-bold">NMC College</h3>
+                        <p class="mb-0 opacity-75">Visit Registration Status</p>
+                    </div>
+                    <div class="card-body p-4 p-md-5 text-center">
+
+                        {% if visitor.status == 'Pending' %}
+                        <div class="mb-4">
+                            <i class="bi bi-clock-history text-warning display-1 mb-3 d-block"></i>
+                            <h2 class="fw-bold">Request Pending</h2>
+                            <p class="text-muted fs-5">Your request for <strong>{{ visitor.name }}</strong> has been
+                                submitted. Please wait for admin approval.</p>
+                        </div>
+                        <div class="alert alert-info py-3 shadow-sm rounded-3">
+                            <i class="bi bi-info-circle-fill me-2"></i><strong>Don't close this page!</strong> Once
+                            approved, your PDF gatepass will appear here.
+                        </div>
+                        <button class="btn btn-outline-primary rounded-pill px-4 mt-3"
+                            onclick="window.location.reload()">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Check Again
+                        </button>
+
+                        {% elif visitor.status == 'Approved' %}
+                        <div class="mb-4">
+                            <i class="bi bi-check-circle-fill text-success display-1 mb-3 d-block"></i>
+                            <h2 class="fw-bold">Request Approved!</h2>
+                            <p class="text-muted fs-5">Your gatepass is ready for download.</p>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <a href="{{ url_for('download_gatepass', token=visitor.token) }}"
+                                class="btn btn-success btn-lg rounded-pill fw-bold shadow py-3">
+                                <i class="bi bi-file-earmark-pdf-fill me-2"></i>Download PDF Gatepass
+                            </a>
+                        </div>
+                        <p class="mt-4 text-danger fw-bold">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Reminder: This pass expires today at
+                            3:30 PM.
+                        </p>
+
+                        {% elif visitor.status == 'Rejected' %}
+                        <div class="mb-4">
+                            <i class="bi bi-x-circle-fill text-danger display-1 mb-3 d-block"></i>
+                            <h2 class="fw-bold">Request Rejected</h2>
+                            <p class="text-muted fs-5">Sorry, your visit request has been rejected by the administrator.
+                            </p>
+                        </div>
+                        <a href="{{ url_for('visitor_form') }}" class="btn btn-primary rounded-pill px-4">New
+                            Request</a>
+                        {% endif %}
+
+                        <hr class="my-5">
+                        <div class="text-start opacity-75 small text-secondary">
+                            <p class="mb-1"><strong>Visitor Name:</strong> {{ visitor.name }}</p>
+                            <p class="mb-1"><strong>To Meet:</strong> {{ visitor.person_to_meet }}</p>
+                            <p class="mb-0"><strong>Purpose:</strong> {{ visitor.purpose }}</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-center mt-4 text-muted small">
+                    <a href="{{ url_for('index') }}" class="text-decoration-none text-secondary">Back to Home</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Auto-refresh only if pending -->
+    {% if visitor.status == 'Pending' %}
+    <script>
+        setTimeout(function () {
+            window.location.reload();
+        }, 10000); // Refresh every 10 seconds
+    </script>
+    {% endif %}
+</body>
+
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NMC College - Visitor Form</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light min-vh-100 d-flex flex-column">
+    <div class="container my-auto py-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+                <div class="card shadow border-0 rounded-4">
+                    <div class="card-header bg-primary text-white text-center py-4 rounded-top-4 border-bottom-0">
+                        <i class="bi bi-person-badge fs-1 mb-2"></i>
+                        <h3 class="mb-0 fw-bold">NMC College</h3>
+                        <p class="mb-0 opacity-75">Visitor Registration</p>
+                    </div>
+                    <div class="card-body p-4 p-md-5">
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                            <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                        {% endwith %}
+
+                        <form method="POST" action="/form" class="needs-validation" novalidate>
+                            <div class="mb-4">
+                                <label for="name" class="form-label fw-semibold text-secondary">Full Name <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg" id="name" name="name"
+                                    value="{{ name|default('') }}" required placeholder="Enter your full name">
+                                <div class="invalid-feedback">Please provide your full name.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="phone" class="form-label fw-semibold text-secondary">Phone Number <span
+                                        class="text-danger">*</span></label>
+                                <input type="tel" class="form-control form-control-lg" id="phone" name="phone"
+                                    pattern="[6-9][0-9]{9}" value="{{ phone|default('') }}" required
+                                    placeholder="Enter 10-digit mobile number">
+                                <div class="invalid-feedback">Please provide a valid 10-digit phone number starting with
+                                    6, 7, 8, or 9.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="from_address" class="form-label fw-semibold text-secondary">From Address
+                                    <span class="text-danger">*</span></label>
+                                <textarea class="form-control form-control-lg" id="from_address" name="from_address"
+                                    rows="2" required placeholder="Enter your home or office address"></textarea>
+                                <div class="invalid-feedback">Please provide your address.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="person_to_meet" class="form-label fw-semibold text-secondary">Person to Meet
+                                    <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg" id="person_to_meet"
+                                    name="person_to_meet" value="{{ person_to_meet|default('') }}" required
+                                    placeholder="Name of staff or student">
+                                <div class="invalid-feedback">Please specify who you are meeting.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="purpose" class="form-label fw-semibold text-secondary">Purpose of Visit
+                                    <span class="text-danger">*</span></label>
+                                <textarea class="form-control form-control-lg" id="purpose" name="purpose" rows="3"
+                                    required
+                                    placeholder="Briefly state your purpose...">{{ purpose|default('') }}</textarea>
+                                <div class="invalid-feedback">Please state your purpose of visit.</div>
+                            </div>
+
+                            <div class="d-grid mt-5">
+                                <button type="submit"
+                                    class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3">Submit
+                                    Request</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="text-center mt-4 text-muted">
+                    <small>&copy; {{ range(2023, 2027) | random }} NMC College. All rights reserved.</small>
+                    <br>
+                    <a href="{{ url_for('login') }}"
+                        class="text-decoration-none text-secondary mt-2 d-inline-block"><small><i
+                                class="bi bi-shield-lock-fill me-1"></i>Admin Portal</small></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Form Validation Script -->
+    <script>
+        // Example starter JavaScript for disabling form submissions if there are invalid fields
+        (function () {
+            'use strict'
+            var forms = document.querySelectorAll('.needs-validation')
+            Array.prototype.slice.call(forms).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                }, false)
+            })
+        })()
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - NMC Gatepass</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        .badge-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .badge-approved {
+            background-color: #198754;
+            color: #fff;
+        }
+
+        .badge-rejected {
+            background-color: #dc3545;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-shield-lock-fill me-2"></i>NMC Security Admin Panel
+            </a>
+            <div class="d-flex">
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm rounded-pill px-3">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4 px-4 pb-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- Dashboard Metrics Row -->
+        <h4 class="mb-3">Today's Overview</h4>
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <div class="card bg-primary text-white shadow border-0 h-100 rounded-4">
+                    <div class="card-body py-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-1 opacity-75 fw-semibold text-uppercase fs-6">Total Visitors</p>
+                                <h1 class="display-5 fw-bold mb-0">{{ metrics.total }}</h1>
+                            </div>
+                            <i class="bi bi-people-fill opacity-50" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card bg-success text-white shadow border-0 h-100 rounded-4">
+                    <div class="card-body py-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-1 opacity-75 fw-semibold text-uppercase fs-6">Approved</p>
+                                <h1 class="display-5 fw-bold mb-0">{{ metrics.approved }}</h1>
+                            </div>
+                            <i class="bi bi-check-circle-fill opacity-50" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card bg-danger text-white shadow border-0 h-100 rounded-4">
+                    <div class="card-body py-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-1 opacity-75 fw-semibold text-uppercase fs-6">Rejected</p>
+                                <h1 class="display-5 fw-bold mb-0">{{ metrics.rejected }}</h1>
+                            </div>
+                            <i class="bi bi-x-circle-fill opacity-50" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">Visitor Log & Approvals</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Name & Phone</th>
+                                <th>From Address</th>
+                                <th>Purpose & To Meet</th>
+                                <th>Timestamps (Entry / Exit)</th>
+                                <th>Status</th>
+                                <th class="text-center pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for visitor in visitors %}
+                            <tr>
+                                <td class="ps-4"><strong>#{{ visitor.id }}</strong></td>
+                                <td>
+                                    <div class="fw-bold">{{ visitor.name }}</div>
+                                    <div class="text-muted small"><i class="bi bi-telephone-fill me-1"></i>{{
+                                        visitor.phone }}</div>
+                                </td>
+                                <td>
+                                    <div class="small">{{ visitor.from_address }}</div>
+                                </td>
+                                <td>
+                                    <div><strong>Purpose:</strong> {{ visitor.purpose }}</div>
+                                    <div><strong>To Meet:</strong> {{ visitor.person_to_meet }}</div>
+                                </td>
+                                <td>
+                                    <div class="small"><strong>Created:</strong> {{
+                                        visitor.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                    <div class="small">
+                                        <strong>Entry:</strong>
+                                        {% if visitor.entry_time %}
+                                        <span class="text-success fw-bold">{{ visitor.entry_time.strftime('%H:%M')
+                                            }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="small">
+                                        <strong>Exit:</strong>
+                                        {% if visitor.exit_time %}
+                                        <span class="text-danger fw-bold">{{ visitor.exit_time.strftime('%H:%M')
+                                            }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span
+                                        class="badge badge-{{ visitor.status|lower }} rounded-pill px-3 py-2 shadow-sm">{{
+                                        visitor.status }}</span>
+                                </td>
+                                <td class="text-center pe-4">
+                                    {% if visitor.status == 'Pending' %}
+                                    <div class="btn-group btn-group-sm w-100 shadow-sm">
+                                        <a href="{{ url_for('approve_visitor', visitor_id=visitor.id) }}"
+                                            class="btn btn-success fw-bold"
+                                            onclick="return confirm('Approve visitor?')"><i
+                                                class="bi bi-check-lg"></i></a>
+                                        <a href="{{ url_for('reject_visitor', visitor_id=visitor.id) }}"
+                                            class="btn btn-danger fw-bold"
+                                            onclick="return confirm('Reject visitor?')"><i class="bi bi-x-lg"></i></a>
+                                    </div>
+                                    {% elif visitor.status == 'Approved' %}
+                                    <a href="{{ url_for('download_gatepass', token=visitor.token) }}"
+                                        class="btn btn-sm btn-outline-primary rounded-pill w-100"><i
+                                            class="bi bi-file-earmark-pdf-fill me-1"></i> PDF</a>
+                                    {% else %}
+                                    <span class="text-muted"><i class="bi bi-slash-circle"></i></span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    No visitors found.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
