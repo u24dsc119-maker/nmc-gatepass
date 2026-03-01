@@ -63,22 +63,31 @@ def visitor_form():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         phone = request.form.get('phone', '').strip()
-        from_address = request.form.get('from_address', '').strip()
+        street = request.form.get('street', '').strip()
+        city = request.form.get('city', '').strip()
+        pincode = request.form.get('pincode', '').strip()
+        from_address = f"{street}, {city} - {pincode}" if street and city and pincode else ''
         purpose = request.form.get('purpose', '').strip()
         person_to_meet = request.form.get('person_to_meet', '').strip()
 
         # --- Validation ---
-        if not name or not phone or not from_address or not purpose or not person_to_meet:
+        if not name or not phone or not street or not city or not pincode or not purpose or not person_to_meet:
             flash('Please fill in all required fields.', 'danger')
             return render_template('form.html', name=name, phone=phone,
-                                   from_address=from_address, purpose=purpose,
-                                   person_to_meet=person_to_meet)
+                                   street=street, city=city, pincode=pincode,
+                                   purpose=purpose, person_to_meet=person_to_meet)
 
         if len(phone) != 10 or not phone.isdigit() or phone[0] not in '6789':
             flash('Please enter a valid 10-digit phone number starting with 6, 7, 8, or 9.', 'danger')
             return render_template('form.html', name=name, phone=phone,
-                                   from_address=from_address, purpose=purpose,
-                                   person_to_meet=person_to_meet)
+                                   street=street, city=city, pincode=pincode,
+                                   purpose=purpose, person_to_meet=person_to_meet)
+
+        if len(pincode) != 6 or not pincode.isdigit():
+            flash('Please enter a valid 6-digit pincode.', 'danger')
+            return render_template('form.html', name=name, phone=phone,
+                                   street=street, city=city, pincode=pincode,
+                                   purpose=purpose, person_to_meet=person_to_meet)
 
         db = get_db()
         if db is not None:

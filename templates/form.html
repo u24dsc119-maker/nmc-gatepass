@@ -4,117 +4,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NMC College - Visitor Form</title>
-    <!-- Bootstrap CSS -->
+    <title>NMC College - Visitor Registration</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: #f0f4ff;
+            min-height: 100vh;
+        }
+
+        .card {
+            border-radius: 1.2rem;
+        }
+
+        .card-header {
+            border-radius: 1.2rem 1.2rem 0 0 !important;
+        }
+
+        .form-control:focus {
+            border-color: #1565c0;
+            box-shadow: 0 0 0 0.2rem rgba(21, 101, 192, .15);
+        }
+
+        .form-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .address-group {
+            background: #f8f9ff;
+            border: 1.5px solid #e3e8ff;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+
+        .address-group legend {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #1565c0;
+            padding: 0 0.5rem;
+        }
+    </style>
 </head>
 
-<body class="bg-light min-vh-100 d-flex flex-column">
-    <div class="container my-auto py-5">
+<body class="min-vh-100 d-flex flex-column">
+    <div class="container my-auto py-4">
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6 col-xl-5">
-                <div class="card shadow border-0 rounded-4">
-                    <div class="card-header bg-primary text-white text-center py-4 rounded-top-4 border-bottom-0">
-                        <i class="bi bi-person-badge fs-1 mb-2"></i>
+                <div class="card shadow border-0">
+                    <div class="card-header bg-primary text-white text-center py-4 border-bottom-0">
+                        <i class="bi bi-person-badge fs-1 mb-1 d-block"></i>
                         <h3 class="mb-0 fw-bold">NMC College</h3>
-                        <p class="mb-0 opacity-75">Visitor Registration</p>
+                        <p class="mb-0 opacity-75 small">Visitor Registration Form</p>
                     </div>
-                    <div class="card-body p-4 p-md-5">
+                    <div class="card-body p-4">
+
                         {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                         {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                             <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                         {% endfor %}
                         {% endif %}
                         {% endwith %}
 
                         <form method="POST" action="/form" class="needs-validation" novalidate>
-                            <div class="mb-4">
-                                <label for="name" class="form-label fw-semibold text-secondary">Full Name <span
+
+                            <!-- Full Name -->
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Full Name <span
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control form-control-lg" id="name" name="name"
                                     value="{{ name|default('') }}" required placeholder="Enter your full name">
                                 <div class="invalid-feedback">Please provide your full name.</div>
                             </div>
 
-                            <div class="mb-4">
-                                <label for="phone" class="form-label fw-semibold text-secondary">Phone Number <span
+                            <!-- Phone Number (digits only, 10 digits) -->
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Mobile Number <span
                                         class="text-danger">*</span></label>
-                                <input type="tel" class="form-control form-control-lg" id="phone" name="phone"
-                                    pattern="[6-9][0-9]{9}" value="{{ phone|default('') }}" required
-                                    placeholder="Enter 10-digit mobile number">
-                                <div class="invalid-feedback">Please provide a valid 10-digit phone number starting with
-                                    6, 7, 8, or 9.</div>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light fw-bold">+91</span>
+                                    <input type="tel" class="form-control" id="phone" name="phone"
+                                        value="{{ phone|default('') }}" required maxlength="10" pattern="[6-9][0-9]{9}"
+                                        placeholder="10-digit mobile number" inputmode="numeric">
+                                </div>
+                                <div id="phone-feedback" class="form-text text-muted small mt-1">
+                                    <span id="phone-count">0</span>/10 digits entered
+                                </div>
+                                <div class="invalid-feedback d-block" id="phone-error" style="display:none!important;">
+                                </div>
                             </div>
 
-                            <div class="mb-4">
-                                <label for="from_address" class="form-label fw-semibold text-secondary">From Address
-                                    <span class="text-danger">*</span></label>
-                                <textarea class="form-control form-control-lg" id="from_address" name="from_address"
-                                    rows="2" required placeholder="Enter your home or office address"></textarea>
-                                <div class="invalid-feedback">Please provide your address.</div>
+                            <!-- From Address (Structured) -->
+                            <div class="mb-3">
+                                <label class="form-label">From Address <span class="text-danger">*</span></label>
+                                <fieldset class="address-group">
+                                    <legend>Address Details</legend>
+                                    <div class="mb-2">
+                                        <input type="text" class="form-control" id="street" name="street"
+                                            value="{{ street|default('') }}" required
+                                            placeholder="Street / Area / Colony">
+                                        <div class="invalid-feedback">Please enter your street/area.</div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-7">
+                                            <input type="text" class="form-control" id="city" name="city"
+                                                value="{{ city|default('') }}" required placeholder="City / Village">
+                                            <div class="invalid-feedback">Please enter city/village.</div>
+                                        </div>
+                                        <div class="col-5">
+                                            <input type="text" class="form-control" id="pincode" name="pincode"
+                                                value="{{ pincode|default('') }}" required maxlength="6"
+                                                pattern="[0-9]{6}" placeholder="Pincode" inputmode="numeric">
+                                            <div class="invalid-feedback">6-digit pincode.</div>
+                                        </div>
+                                    </div>
+                                </fieldset>
                             </div>
 
-                            <div class="mb-4">
-                                <label for="person_to_meet" class="form-label fw-semibold text-secondary">Person to Meet
-                                    <span class="text-danger">*</span></label>
+                            <!-- Person to Meet -->
+                            <div class="mb-3">
+                                <label for="person_to_meet" class="form-label">Person to Meet <span
+                                        class="text-danger">*</span></label>
                                 <input type="text" class="form-control form-control-lg" id="person_to_meet"
                                     name="person_to_meet" value="{{ person_to_meet|default('') }}" required
-                                    placeholder="Name of staff or student">
+                                    placeholder="Name of staff or faculty">
                                 <div class="invalid-feedback">Please specify who you are meeting.</div>
                             </div>
 
+                            <!-- Purpose -->
                             <div class="mb-4">
-                                <label for="purpose" class="form-label fw-semibold text-secondary">Purpose of Visit
-                                    <span class="text-danger">*</span></label>
-                                <textarea class="form-control form-control-lg" id="purpose" name="purpose" rows="3"
-                                    required
+                                <label for="purpose" class="form-label">Purpose of Visit <span
+                                        class="text-danger">*</span></label>
+                                <textarea class="form-control" id="purpose" name="purpose" rows="3" required
                                     placeholder="Briefly state your purpose...">{{ purpose|default('') }}</textarea>
-                                <div class="invalid-feedback">Please state your purpose of visit.</div>
+                                <div class="invalid-feedback">Please state your purpose.</div>
                             </div>
 
-                            <div class="d-grid mt-5">
-                                <button type="submit"
-                                    class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3">Submit
-                                    Request</button>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold py-3">
+                                    <i class="bi bi-send-fill me-2"></i>Submit Visit Request
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
-                <div class="text-center mt-4 text-muted">
-                    <small>&copy; {{ range(2023, 2027) | random }} NMC College. All rights reserved.</small>
-                    <br>
-                    <a href="{{ url_for('login') }}"
-                        class="text-decoration-none text-secondary mt-2 d-inline-block"><small><i
-                                class="bi bi-shield-lock-fill me-1"></i>Admin Portal</small></a>
+
+                <div class="text-center mt-3 text-muted small">
+                    &copy; 2026 NMC College &nbsp;|&nbsp;
+                    <a href="{{ url_for('login') }}" class="text-decoration-none text-secondary">
+                        <i class="bi bi-shield-lock-fill me-1"></i>Admin Portal
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Form Validation Script -->
     <script>
-        // Example starter JavaScript for disabling form submissions if there are invalid fields
+        // Phone: allow digits only, show live counter
+        const phoneInput = document.getElementById('phone');
+        const phoneCount = document.getElementById('phone-count');
+        const phoneError = document.getElementById('phone-error');
+
+        phoneInput.addEventListener('keypress', function (e) {
+            if (!/[0-9]/.test(e.key)) e.preventDefault();
+        });
+        phoneInput.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+            phoneCount.textContent = this.value.length;
+            if (this.value.length === 10 && !/^[6-9]/.test(this.value)) {
+                phoneError.textContent = 'Number must start with 6, 7, 8, or 9.';
+                phoneError.style.display = 'block';
+            } else {
+                phoneError.textContent = '';
+                phoneError.style.display = 'none';
+            }
+        });
+
+        // Pincode: digits only
+        document.getElementById('pincode').addEventListener('keypress', function (e) {
+            if (!/[0-9]/.test(e.key)) e.preventDefault();
+        });
+
+        // Bootstrap validation
         (function () {
-            'use strict'
-            var forms = document.querySelectorAll('.needs-validation')
+            'use strict';
+            var forms = document.querySelectorAll('.needs-validation');
             Array.prototype.slice.call(forms).forEach(function (form) {
                 form.addEventListener('submit', function (event) {
                     if (!form.checkValidity()) {
-                        event.preventDefault()
-                        event.stopPropagation()
+                        event.preventDefault();
+                        event.stopPropagation();
                     }
-                    form.classList.add('was-validated')
-                }, false)
-            })
-        })()
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
     </script>
 </body>
 
